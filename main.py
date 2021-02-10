@@ -145,6 +145,8 @@ def main():
                     'scheduler':scheduler,
                     'device':device,
                     'fold_num':0,
+                    'input_size': args.input_size,
+                    'batch_size': args.batch_size,
                     }
 
     train(args, trn_cfg)
