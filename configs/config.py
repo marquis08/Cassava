@@ -3,6 +3,10 @@ import cv2
 import albumentations as A
 abs_path = os.path.dirname(__file__)
 
+import psutil
+n_jobs = psutil.cpu_count()
+
+
 args = {
     "SEED":42,
     "n_folds":10,
@@ -13,8 +17,8 @@ args = {
     "infer_batch_size":64,
     "infer_model_path":'',
     "infer_best_model_name":'',
-    "num_workers":1,
-    "model":"tf_efficientnet_b1_ns", # tf_efficientnet_b2_ns, vit_base_patch16_384, vit_small_patch16_224 "vit_small_patch16_224"
+    "num_workers":n_jobs,
+    "model":"vit_small_patch16_224", # tf_efficientnet_b2_ns, vit_base_patch16_384, vit_small_patch16_224 "vit_small_patch16_224"
     "optimizer":"AdamW",
     "scheduler":"warmup",
     "lr":0.00025,   # 0.00025
@@ -35,5 +39,6 @@ args = {
     "albu": False,
     "clahe":True,
     "fp16": True,
+    "grayscale": False,
     "DEBUG":False
 }
