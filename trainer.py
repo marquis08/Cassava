@@ -23,6 +23,8 @@ def train(args, trn_cfg):
     scheduler = trn_cfg['scheduler']
     device = trn_cfg['device']
     fold_num = trn_cfg['fold_num']
+    img_size = trn_cfg['input_size']
+    bs = trn_cfg['batch_size']
 
     ### fp 16
     scaler = torch.cuda.amp.GradScaler()
@@ -33,9 +35,17 @@ def train(args, trn_cfg):
 
     ########################## 시작하면 폴더생성
 #    ctime = time.ctime().replace(' ', '_')[:-4]
-    ctime = (datetime.today() + timedelta(hours=9)).strftime("%Y-%m-%d_%H:%M:%S")
-    save_path = f'models/{ctime}_{args.model}/'
-    os.makedirs(save_path, exist_ok=True)
+    # ctime = (datetime.today() + timedelta(hours=9)).strftime("%Y-%m-%d_%H:%M:%S") #UTC0 --> UTC9(SEOUL)
+    ctime = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
+    # save_path = f'cassava_models/{ctime}_{args.model}/'
+    save_path = f'cassava_models/{args.model}_{ctime}_{img_size}'
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    else:
+        save_path += "_new"
+    # closing path
+    save_path += "/"
+    
     # config file .py로 떨구기
     default_config_path = 'configs/config.py'
     fname = 'experiment.py' # new_fname to choose
@@ -61,7 +71,7 @@ def train(args, trn_cfg):
 
         content = f'Fold {fold_num}, Epoch {epoch}/{args.epochs}, lr: {lr[0]:.7f}, train loss: {trn_loss:.5f}, valid loss: {val_loss:.5f}, val_acc: {val_acc:.4f}, val_f1: {val_score:.4f}, time: {elapsed:.0f}'
         print(content)
-        with open(save_path + f'log_{fold_num}.txt', 'a') as appender:
+        with open(save_path + f'log_fold{fold_num}.txt', 'a') as appender:
             appender.write(content + '\n')
 
         # save model weight
