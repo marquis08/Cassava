@@ -23,10 +23,17 @@ class SleepDataset(Dataset):
         self.transforms = transforms
         self.is_test = is_test
         
-        print('########################### dataset loader')
+        print('########################### dataset loader to memory for Faster Loading')
         for image_path in tqdm(self.image_paths):
-            #image = cv2.imread(image_path, cv2.IMREAD_COLOR)
-            image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+            if args.grayscale:
+                image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+                image = np.expand_dims(image, -1)
+            else:
+                image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                image = Image.fromarray(image)
+
+            # image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
             #if args.clahe:
             #    clahe = cv2.createCLAHE(clipLimit=1.0, tileGridSize=(4, 4))
             #    image = clahe.apply(image)
@@ -37,10 +44,8 @@ class SleepDataset(Dataset):
             #    crop_start = random.randrange(50, 160)
             #    image = image[:, crop_start:crop_start+height]
             
-            image = np.expand_dims(image, -1)
-            #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            #image = Image.fromarray(image)
-
+            # image = np.expand_dims(image, -1)
+    
             #if self.default_transforms is not None:
             #    img = self.default_transforms(image=img)['image']
             self.images.append(image)
@@ -80,9 +85,13 @@ class SleepDataset(Dataset):
                     if rand_val < 0.3:
                         image = signal_mask(image, num_masks=mask_num)
 
-        #image = img_to_tensor(image, {"mean": [0.485, 0.456, 0.406],
-        #                            "std": [0.229, 0.224, 0.225]})
-        image = img_to_tensor(image)
+        
+        if self.args.grayscale:
+            image = img_to_tensor(image)
+        else:
+            image = img_to_tensor(image, {"mean": [0.485, 0.456, 0.406],
+                                   "std": [0.229, 0.224, 0.225]})
+
         #image = torch.from_numpy(image.transpose((2, 0, 1)))
 
 
