@@ -23,7 +23,7 @@ def train(args, trn_cfg):
     scheduler = trn_cfg['scheduler']
     device = trn_cfg['device']
     fold_num = trn_cfg['fold_num']
-    img_size = trn_cfg['input_size']
+    # img_size = trn_cfg['input_size']
     bs = trn_cfg['batch_size']
 
     ### fp 16
@@ -38,7 +38,7 @@ def train(args, trn_cfg):
     # ctime = (datetime.today() + timedelta(hours=9)).strftime("%Y-%m-%d_%H:%M:%S") #UTC0 --> UTC9(SEOUL)
     ctime = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
     # save_path = f'cassava_models/{ctime}_{args.model}/'
-    save_path = f'cassava_models/{args.model}_{ctime}_{img_size}'
+    save_path = f'../WEIGHTS/cassava_models/{ctime}_{args.model}'
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     else:
@@ -47,10 +47,12 @@ def train(args, trn_cfg):
     save_path += "/"
     
     # config file .py로 떨구기
-    default_config_path = 'configs/config.py'
+    default_config_path = 'config.py'
     fname = 'experiment.py' # new_fname to choose
     shutil.copy2(default_config_path, save_path + fname)
+    shutil.copy2('transforms.py', save_path+'transforms_record.py')
     print("Copying config file From {} To {}".format(default_config_path, save_path+fname))
+    print("Copying transforms file From {} To {}".format('transforms.py', save_path+'transforms_record.py'))
 
     # Train the model
     for epoch in range(args.epochs):
@@ -59,9 +61,10 @@ def train(args, trn_cfg):
         # 매 에포크마다 다른 train_loader 선택
         # valid set은 고정
         td_list = train_datasets[epoch%len(train_datasets.keys())]
-        train_dataset = SleepDataset(td_list[0], td_list[1], td_list[2], td_list[3], use_masking=True, is_test=False)
+        train_dataset = LeafDataset(td_list[0], td_list[1], td_list[2], td_list[3], use_masking=True, is_test=False)
         train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True, pin_memory=True)
 
+        # print(args)
         trn_loss = train_one_epoch(args, model, criterion, train_loader, optimizer, scheduler, device, scaler)
         val_loss, val_acc, val_score = validation(args, trn_cfg, model, criterion, valid_loader, device)
 
@@ -69,7 +72,7 @@ def train(args, trn_cfg):
 
         lr = [_['lr'] for _ in optimizer.param_groups]
 
-        content = f'Fold {fold_num}, Epoch {epoch}/{args.epochs}, lr: {lr[0]:.7f}, train loss: {trn_loss:.5f}, valid loss: {val_loss:.5f}, val_acc: {val_acc:.4f}, val_f1: {val_score:.4f}, time: {elapsed:.0f}'
+        content = f'Fold {fold_num}, Epoch {epoch}/{args.epochs}, lr: {lr[0]:.7f}, tr loss: {trn_loss:.5f}, val loss: {val_loss:.5f}, val_acc: {val_acc:.4f}, val_f1: {val_score:.4f}, time: {elapsed:.0f}'
         print(content)
         with open(save_path + f'log_fold{fold_num}.txt', 'a') as appender:
             appender.write(content + '\n')

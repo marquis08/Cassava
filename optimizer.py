@@ -8,6 +8,23 @@ from torch import optim
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer, required
 from torch.optim.lr_scheduler import _LRScheduler, LambdaLR, CosineAnnealingLR, StepLR, ReduceLROnPlateau
+from warmup_scheduler import GradualWarmupScheduler  # https://github.com/ildoonet/pytorch-gradual-warmup-lr
+
+class GradualWarmupSchedulerV2(GradualWarmupScheduler):
+    def __init__(self, optimizer, multiplier, total_epoch, after_scheduler=None):
+        super(GradualWarmupSchedulerV2, self).__init__(optimizer, multiplier, total_epoch, after_scheduler)
+    def get_lr(self):
+        if self.last_epoch > self.total_epoch:
+            if self.after_scheduler:
+                if not self.finished:
+                    self.after_scheduler.base_lrs = [base_lr * self.multiplier for base_lr in self.base_lrs]
+                    self.finished = True
+                return self.after_scheduler.get_last_lr()
+            return [base_lr * self.multiplier for base_lr in self.base_lrs]
+        if self.multiplier == 1.0:
+            return [base_lr * (float(self.last_epoch) / self.total_epoch) for base_lr in self.base_lrs]
+        else:
+            return [base_lr * ((self.multiplier - 1.) * self.last_epoch / self.total_epoch + 1.) for base_lr in self.base_lrs]
 
 
 def build_optimizer(args, model):
@@ -27,7 +44,7 @@ def build_optimizer(args, model):
     return optimizer
 
 
-def build_scheduler(args, optimizer, batch_num):
+def build_scheduler(args, optimizer):
 
     if args.scheduler == 'Cosine':
         T_max = 10
@@ -41,6 +58,11 @@ def build_scheduler(args, optimizer, batch_num):
         scheduler = LambdaLR(optimizer=optimizer, lr_lambda=lambda epoch: 1 / (epoch+1))
     elif args.scheduler == 'Plateau':
         scheduler = ReduceLROnPlateau(optimizer=optimizer, mode='max', factor=0.5, patience=args.patience)
+    elif args.scheduler == 'WarmupV2':
+        scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 9)
+        scheduler = GradualWarmupSchedulerV2(optimizer, multiplier=1, total_epoch=1, after_scheduler=scheduler_cosine)
+    elif args.scheduler == "CosWarm":
+        sch = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=1, eta_min=1e-6, last_epoch=-1)
     else:
         NotImplementedError
 

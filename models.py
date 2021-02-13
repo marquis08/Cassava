@@ -6,16 +6,23 @@ from efficientnet_pytorch import EfficientNet
 import torchvision.models as models
 import timm
 
+
+
+
 def build_model(args, device):
         
-    if args.model == 'base': 
-        model = CNN_Base().to(device)
-    else:
+    if args.grayscale: 
         model_list = list()
         model_list.append(nn.Conv2d(1, 3, 1))
         model = timm.create_model(args.model, pretrained=args.pretrained, num_classes=args.num_classes)
         model_list.append(model)
         model = nn.Sequential(*model_list)
+    else:
+        model = drop_models(args)
+        # model_list = list()
+        # model = timm.create_model(args.model, pretrained=args.pretrained, num_classes=args.num_classes)
+        # model_list.append(model)
+        # model = nn.Sequential(*model_list)
 
     # elif args.model == 'efficientnet_b4':
     #     if args.pretrained and args.mode != 'test':
@@ -32,56 +39,39 @@ def build_model(args, device):
     
     return model
 
-
-class Resnet50(nn.Module):
-    def __init__(self, num_classes, dropout=False, pretrained=False):
+class drop_models(nn.Module):
+    def __init__(self, args):
         super().__init__()
-        model = models.resnet50(pretrained=pretrained)
-        model = list(model.children())[:-1]
-        if dropout:
-            model.append(nn.Dropout(0.2))
-        model.append(nn.Conv2d(2048, num_classes, 1))
-        self.net = nn.Sequential(*model)
+        model_list = list()
+        # model_list.append(nn.Conv2d(1, 3, 1))
+        model = timm.create_model(args.model, pretrained=args.pretrained, num_classes=512)
+        model_list.append(model)
+        model = nn.Sequential(*model_list)
+        self.dropout = nn.Dropout(0.5)                
+        self.dropouts = nn.ModuleList([
+                    nn.Dropout(0.5) for _ in range(5)])
+        self.model = model
+        
+        self.output_layer = nn.Linear(512, args.num_classes)
 
-    def forward(self, x):
-        return self.net(x).squeeze(-1).squeeze(-1)
+    def extract(self, x):
+        x=self.model(x)
+        return x
 
+    def forward(self, img):
+    # def forward(self, img, str_feature):
+        #img_feat = self.model(img)
+        img_feat = self.extract(img).squeeze(-1).squeeze(-1)
+        # str_feat = self.str_model(str_feature)
 
-class CNN_Base(nn.Module):
-    def __init__(self, ):
-        super(CNN_Base, self).__init__()  
-
-        self.cnn_layer = nn.Sequential(            
-            nn.Conv2d(3,6, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(6),
-            nn.ReLU(),
-            # nn.Dropout(0.5),
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(6,12, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(12),
-            nn.ReLU(),
-            # nn.Dropout(0.5),
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(12,15, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(15),
-            nn.ReLU(),
-            # nn.Dropout(0.5),
-            nn.MaxPool2d(kernel_size=3, stride=2),
-        )
-        self.fc = nn.Sequential( 
-            nn.Linear(735, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(32, 1), 
-        )
-
-    def forward(self, x):
-        out = self.cnn_layer(x)
-        out = out.reshape(out.size(0), -1)
-        out = self.fc(out)
-        return out
+        # feat = torch.cat([img_feat, str_feat], dim=1)
+        for i, dropout in enumerate(self.dropouts):
+            if i==0:
+                output = self.output_layer(dropout(img_feat))
+            else:
+                output += self.output_layer(dropout(img_feat))
+        else:
+            output /= len(self.dropouts)
+        #output = self.output_layer(self.dropout(feat))
+        # print("OUTPUT: {}".format(output.shape))
+        return output
