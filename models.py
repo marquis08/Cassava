@@ -2,6 +2,7 @@
 
 import torch 
 import torch.nn as nn
+from torch.nn import functional as F
 from efficientnet_pytorch import EfficientNet
 import torchvision.models as models
 import timm
@@ -11,17 +12,28 @@ import timm
 
 def build_model(args, device):
         
-    if args.grayscale: 
-        model_list = list()
-        model_list.append(nn.Conv2d(1, 3, 1))
-        model = timm.create_model(args.model, pretrained=args.pretrained, num_classes=args.num_classes)
-        model_list.append(model)
-        model = nn.Sequential(*model_list)
+    
+
+    if args.timm:
+        if args.grayscale: 
+            model_list = list()
+            model_list.append(nn.Conv2d(1, 3, 1))
+            model = timm.create_model(args.timm_model, pretrained=args.pretrained, num_classes=args.num_classes)
+            model_list.append(model)
+            model = nn.Sequential(*model_list)
+        else:
+            model = TimmClassifier(args)
     else:
-        model = drop_models(args)
-        # model_list = list()
+        if args.grayscale: 
+            model = Effnet_GrayClassifier(args)
+        else:
+            model = EffnetClassifier(args)
         # model = timm.create_model(args.model, pretrained=args.pretrained, num_classes=args.num_classes)
-        # model_list.append(model)
+        # model_list = list(model.children())[:-1]
+        # # model_list.append(nn.AdaptiveAvgPool2d(list(model.children())[-1].in_features))
+        # model_list.append(nn.Dropout(0.1))
+        # model_list.append(nn.Linear(list(model.children())[-1].in_features, args.num_classes))
+        
         # model = nn.Sequential(*model_list)
 
     # elif args.model == 'efficientnet_b4':
@@ -39,20 +51,72 @@ def build_model(args, device):
     
     return model
 
-class drop_models(nn.Module):
+class TimmClassifier(nn.Module):
     def __init__(self, args):
         super().__init__()
-        model_list = list()
-        # model_list.append(nn.Conv2d(1, 3, 1))
-        model = timm.create_model(args.model, pretrained=args.pretrained, num_classes=512)
-        model_list.append(model)
+        model = timm.create_model(args.timm_model, pretrained=args.pretrained, num_classes=args.num_classes)
+        model_list = list(model.children())[:-2]
+        self.model = nn.Sequential(*model_list)
+
+        self.dropout = nn.Dropout(0.1)
+        self.out = nn.Linear(list(model.children())[-1].in_features, args.num_classes)
+        self.args = args
+
+    def forward(self, x):
+        bs, _, _, _ = x.shape #bs: batch_size
+        x = self.model(x)
+        x = F.adaptive_avg_pool2d(x, 1).reshape(bs, -1)
+        outputs = self.out(self.dropout(x))
+        return outputs
+
+class EffnetClassifier(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.effnet = EfficientNet.from_pretrained(args.model)
+        self.dropout = nn.Dropout(0.1)
+        self.out = nn.Linear(self.effnet._fc.in_features, args.num_classes)
+        
+    def forward(self, image, targets=None):
+        batch_size, _, _, _ = image.shape
+
+        x = self.effnet.extract_features(image)
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch_size, -1)
+        outputs = self.out(self.dropout(x))
+
+        return outputs
+
+class Effnet_GrayClassifier(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.conv0 = nn.Conv2d(1, 3, 1)
+        self.effnet = EfficientNet.from_pretrained(args.model)
+        self.dropout = nn.Dropout(0.1)
+        self.out = nn.Linear(self.effnet._fc.in_features, args.num_classes)
+        
+    def forward(self, image, targets=None):
+        batch_size, _, _, _ = image.shape
+        x = self.conv0(image)
+        x = self.effnet.extract_features(x)
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch_size, -1)
+        outputs = self.out(self.dropout(x))
+
+        return outputs
+
+class dropout_ensemble_models(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        model = timm.create_model(args.model, pretrained=args.pretrained, num_classes=args.num_classes)
+        model_list = list(model.children())[:-2]
+        model_list.append(nn.AdaptiveAvgPool2d())
+        model_list.append(nn.Dropout(0.1))
+        # model_list.append(nn.Linear(list(model.children())[-1].in_features, args.num_classes))
         model = nn.Sequential(*model_list)
         self.dropout = nn.Dropout(0.5)                
         self.dropouts = nn.ModuleList([
                     nn.Dropout(0.5) for _ in range(5)])
         self.model = model
         
-        self.output_layer = nn.Linear(512, args.num_classes)
+        self.output_layer = nn.Linear(list(model.children())[-1].in_features, args.num_classes)
 
     def extract(self, x):
         x=self.model(x)

@@ -10,13 +10,16 @@ import torch.nn as nn
 from sklearn.metrics import f1_score, accuracy_score
 from tqdm import tqdm
 from glob import glob
-import shutil
+from shutil import copytree, ignore_patterns
 from datetime import datetime, timedelta
+from distutils.dir_util import copy_tree
 
 def train(args, trn_cfg):
-
-    train_datasets = trn_cfg['train_datasets']
-    valid_loader = trn_cfg['valid_loader']
+    # if args.sub_train:
+    #     train_datasets = trn_cfg['train_datasets']
+    # else:
+    #     train_loader = trn_cfg['train_loader']
+    # valid_loader = trn_cfg['valid_loader']
     model = trn_cfg['model']
     criterion = trn_cfg['criterion']
     optimizer = trn_cfg['optimizer']
@@ -24,7 +27,7 @@ def train(args, trn_cfg):
     device = trn_cfg['device']
     fold_num = trn_cfg['fold_num']
     # img_size = trn_cfg['input_size']
-    bs = trn_cfg['batch_size']
+    # bs = trn_cfg['batch_size']
 
     ### fp 16
     scaler = torch.cuda.amp.GradScaler()
@@ -38,21 +41,32 @@ def train(args, trn_cfg):
     # ctime = (datetime.today() + timedelta(hours=9)).strftime("%Y-%m-%d_%H:%M:%S") #UTC0 --> UTC9(SEOUL)
     ctime = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
     # save_path = f'cassava_models/{ctime}_{args.model}/'
-    save_path = f'../WEIGHTS/cassava_models/{ctime}_{args.model}'
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
+    if args.timm:
+        model_name = args.timm_model
     else:
-        save_path += "_new"
+        model_name = args.model
+
+    # if args.sub_train:
+    #     save_path = f'../WEIGHTS/cassava_models/{ctime}_{model_name}'
+    # else:
+    save_path = f'../WEIGHTS/cassava_models/{ctime}_{model_name}_fold{fold_num}'
+    # if not os.path.exists(save_path):
+    #     os.makedirs(save_path)
+    # else:
+    #     save_path += "_new"
     # closing path
     save_path += "/"
-    
+    src_dir = '../Cassava/'
     # config file .py로 떨구기
-    default_config_path = 'config.py'
-    fname = 'experiment.py' # new_fname to choose
-    shutil.copy2(default_config_path, save_path + fname)
-    shutil.copy2('transforms.py', save_path+'transforms_record.py')
-    print("Copying config file From {} To {}".format(default_config_path, save_path+fname))
-    print("Copying transforms file From {} To {}".format('transforms.py', save_path+'transforms_record.py'))
+    # copy_tree(src_dir, save_path)
+    copytree(src_dir, save_path, ignore=ignore_patterns('__pycache__', '*.md'))
+    print("Copying all file From {} To {}".format(src_dir, save_path))
+    # default_config_path = 'config.py'
+    # fname = 'experiment.py' # new_fname to choose
+    # shutil.copy2(default_config_path, save_path + fname)
+    # shutil.copy2('transforms.py', save_path+'transforms_record.py')
+    # print("Copying config file From {} To {}".format(default_config_path, save_path+fname))
+    # print("Copying transforms file From {} To {}".format('transforms.py', save_path+'transforms_record.py'))
 
     # Train the model
     for epoch in range(args.epochs):
@@ -60,13 +74,15 @@ def train(args, trn_cfg):
         start_time = time.time()
         # 매 에포크마다 다른 train_loader 선택
         # valid set은 고정
-        td_list = train_datasets[epoch%len(train_datasets.keys())]
-        train_dataset = LeafDataset(td_list[0], td_list[1], td_list[2], td_list[3], use_masking=True, is_test=False)
-        train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True, pin_memory=True)
-
+        # if args.sub_train:
+        #     td_list = train_datasets[epoch%len(train_datasets.keys())]
+        #     train_dataset = LeafDataset(td_list[0], td_list[1], td_list[2], td_list[3], use_masking=True, is_test=False)
+        #     train_loader = DataLoader(dataset=train_dataset, batch_size=args.tr_batch_size, num_workers=args.num_workers, shuffle=True, pin_memory=True)
+        # else:
+        # train_loader = trn_cfg['train_loader']
         # print(args)
-        trn_loss = train_one_epoch(args, model, criterion, train_loader, optimizer, scheduler, device, scaler)
-        val_loss, val_acc, val_score = validation(args, trn_cfg, model, criterion, valid_loader, device)
+        trn_loss = train_one_epoch(args, model, criterion, trn_cfg['train_loader'], optimizer, scheduler, device, scaler)
+        val_loss, val_acc, val_score = validation(args, trn_cfg, model, criterion, trn_cfg['valid_loader'], device)
 
         elapsed = time.time() - start_time
 
@@ -92,7 +108,7 @@ def train(args, trn_cfg):
         else:
             scheduler.step()
 
-        del train_loader; gc.collect()
+        # del train_loader; gc.collect()
 
 
 def train_one_epoch(args, model, criterion, train_loader, optimizer, scheduler, device, scaler):

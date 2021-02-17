@@ -9,6 +9,8 @@ from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer, required
 from torch.optim.lr_scheduler import _LRScheduler, LambdaLR, CosineAnnealingLR, StepLR, ReduceLROnPlateau
 from warmup_scheduler import GradualWarmupScheduler  # https://github.com/ildoonet/pytorch-gradual-warmup-lr
+import torch_optimizer as optim
+
 
 class GradualWarmupSchedulerV2(GradualWarmupScheduler):
     def __init__(self, optimizer, multiplier, total_epoch, after_scheduler=None):
@@ -32,7 +34,7 @@ def build_optimizer(args, model):
     if args.optimizer == 'Adam':
         optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     elif args.optimizer == 'RAdam':
-        optimizer = RAdam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer = radam(model.parameters(), lr=args.lr, betas=(0.9,0.999), eps=1e-3, weight_decay=args.weight_decay)
     elif args.optimizer == 'AdamW':
         optimizer = AdamW(model.parameters(), lr=args.lr)  
     elif args.optimizer == 'SGD':
@@ -62,13 +64,20 @@ def build_scheduler(args, optimizer):
         scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 9)
         scheduler = GradualWarmupSchedulerV2(optimizer, multiplier=1, total_epoch=1, after_scheduler=scheduler_cosine)
     elif args.scheduler == "CosWarm":
-        sch = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=1, eta_min=1e-6, last_epoch=-1)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=1, eta_min=1e-6, last_epoch=-1)
     else:
         NotImplementedError
 
     return scheduler
 
-
+def radam(parameters, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0):
+            if isinstance(betas, str):
+                betas = eval(betas)
+            return optim.RAdam(parameters,
+                              lr=lr,
+                              betas=betas,
+                              eps=eps,
+                              weight_decay=weight_decay)
 
 """ AdamW Optimizer
 Implementation copied from PyTorch master
