@@ -39,10 +39,11 @@ def build_optimizer(args, model):
         optimizer = AdamW(model.parameters(), lr=args.lr)  
     elif args.optimizer == 'SGD':
         optimizer = SGD(model.parameters(), momentum=0.9, lr=args.lr, weight_decay=args.weight_decay)   
+    elif args.optimizer == 'Lookahead':
+        optimizer = Lookahead(optimizer=optimizer, k=args.k_param, alpha=args.alpha_param)
     else:
         NotImplementedError
-    if args.lookahead:
-        optimizer = Lookahead(optimizer=optimizer, k=args.k_param, alpha=args.alpha_param)
+    
     return optimizer
 
 

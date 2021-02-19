@@ -9,44 +9,29 @@ n_jobs = psutil.cpu_count()
 
 args = {
     "SEED":42,
-    # "sub_train":False,
     "n_folds":5,
-    "epochs":1, 
+    "epochs":10, 
     "num_classes":5,
-    # "input_size":512,
-    "tr_batch_size":8,
+    "tr_batch_size":12,
     "val_batch_size":32,
-    # "infer_batch_size":64,
-    # "infer_model_path":'',
-    # "infer_best_model_name":'',
     "backend":"pil", # pil, cv2
     "num_workers":n_jobs,
     "timm":True,
     "timm_model":"tf_efficientnet_b4_ns", # tf_efficientnet_b4_ns, tf_efficientnet_b2_ns, vit_base_patch16_384, vit_small_patch16_224 "vit_small_patch16_224"
-    "model":"efficientnet-b4",
+    "model":"efficientnet-b4", # using EfficientNet from efficientnet_pytorch
+    "multi_loss": True,
+    "multi_loss_list":['CE','Label'],
+    "multi_loss_epoch_thr":5,
     "loss_fn": "Label", # SCE, CE, Label, BTLL
-    "optimizer":"RAdam", # Adam, RAdam, AdamW, SGD
+    "optimizer":"RAdam", # Adam, RAdam, AdamW, SGD, Lookahead
     "scheduler":"CosWarm", # Cosine, Steplr, Lambda, Plateau, WarmupV2, CosWarm
-    "lr":3e-4,   # 0.00025
+    "lr":3e-4,   
     "weight_decay":1e-4,
-    # "center_pad":True,
-    # "train_augments":'random_crop, horizontal_flip, vertical_flip, random_rotate, random_grayscale',
-    # "valid_augments":'horizontal_flip, vertical_flip',
     "augment_ratio":0.5,
-    # "masking_type":None,
-    # "max_mask_num":3,
-    # "label_smoothing":True,
     "label_smoothing_ratio":0.4,
     "pretrained":True,
-    "lookahead":False,
-    # "k_param":5,
-    # "alpha_param":0.5,
-    # "patience":3,
-    # "albu": False,
-    # "clahe":True,
     "fp16": True,
-    "grayscale": True,
-    # "dropout_ensemble": False,
+    "grayscale": False,
     "DEBUG":True
 }
 
