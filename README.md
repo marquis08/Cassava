@@ -1,6 +1,7 @@
 # **[Kaggle] Cassava Leaf Disease Classification**
 Cassava Leaf Disease Classification 
 Private 274th | Public 105th
+
 <br>
 
 ## **Models**
@@ -21,7 +22,8 @@ Private 274th | Public 105th
 - 5 folds, input: 512
 - LabelSmoothing(0.12) 10 epoch
 - TTA = 4 (SSR, Hflip, Vflip, Transpose, RandomCrop)
-<br><br>
+
+<br>
 
 ## **Ensemble Model**
 - Simple Averaing
