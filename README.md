@@ -1,5 +1,5 @@
 # **[Kaggle] Cassava Leaf Disease Classification**
-Cassava Leaf Disease Classification 
+
 Private 274th | Public 105th
 
 <br>
