@@ -42,7 +42,7 @@ def train(args, trn_cfg):
     #     save_path += "_new"
     # closing path
     save_path += "/"
-    src_dir = '../Cassava/'
+    src_dir = '../Cassava-Leaf-Disease-Classification/'
     # all src file to model_weight dir(copytree only works with non-exist dir)
     copytree(src_dir, save_path, ignore=ignore_patterns('__pycache__', '*.md'))
     print("Copying all file From {} To {}".format(src_dir, save_path))
@@ -95,6 +95,10 @@ def train_one_epoch(args, model, criterion, train_loader, optimizer, scheduler, 
     bar = tqdm(train_loader)
     for images, labels in bar:
         optimizer.zero_grad()
+        print("#############################")
+        print(type(images))
+        print(type(labels))
+        print(images)
         labels = labels.long()
         if device:
             images = images.to(device)

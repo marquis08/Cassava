@@ -8,7 +8,6 @@ import time
 import cv2
 import numpy as np
 import pandas as pd
-from collections import Counter
 from sklearn.model_selection import KFold, StratifiedKFold
 
 import torch
